@@ -1,4 +1,4 @@
-const mysql = require("mysql");
+const mysql = require("mysql2"); // Use mysql2 instead of mysql
 require("dotenv").config();
 
 // Set up the database connection using createConnection for XAMPP
@@ -6,7 +6,8 @@ const db = mysql.createConnection({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
-  database: "signup", // Ensure this matches your database name
+  database: process.env.DB_NAME || "signup", // Ensure this matches your database name
+  port: process.env.DB_PORT || 14092,
 });
 
 // Connect to the MySQL database
