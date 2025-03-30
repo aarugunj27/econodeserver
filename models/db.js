@@ -24,7 +24,7 @@ if (process.env.CA_CERT_BASE64) {
   // For local development: use local certificate file
   sslOptions = {
     ca: fs.readFileSync(process.env.SSL_CA_CERT || "./ca.pem"), // Path to your Aiven CA cert
-    rejectUnauthorized: true, // Set to true in production
+    rejectUnauthorized: false, // Set to true in production
   };
 }
 
