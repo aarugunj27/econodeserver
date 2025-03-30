@@ -1,12 +1,32 @@
 const mysql = require("mysql2");
 const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
-// SSL Certificate (Required for Aiven)
-const sslOptions = {
-  ca: fs.readFileSync(process.env.SSL_CA_CERT || "./ca.pem"), // Path to your Aiven CA cert
-  rejectUnauthorized: true, // Set to true in production
-};
+// SSL Certificate handling
+let sslOptions;
+
+if (process.env.CA_CERT_BASE64) {
+  // For Railway: decode base64 certificate from environment variable
+  const caCert = Buffer.from(process.env.CA_CERT_BASE64, "base64").toString(
+    "utf-8"
+  );
+
+  // Create a temporary file or use certificate directly
+  const tempCertPath = path.join(process.cwd(), "temp-ca.pem");
+  fs.writeFileSync(tempCertPath, caCert);
+
+  sslOptions = {
+    ca: tempCertPath, // Path to temp cert file
+    rejectUnauthorized: true,
+  };
+} else {
+  // For local development: use local certificate file
+  sslOptions = {
+    ca: fs.readFileSync(process.env.SSL_CA_CERT || "./ca.pem"), // Path to your Aiven CA cert
+    rejectUnauthorized: true, // Set to true in production
+  };
+}
 
 // Database connection configuration
 const dbConfig = {
@@ -87,6 +107,18 @@ const createTables = async () => {
     connection.release();
   }
 };
+
+// Cleanup temporary certificate file on process exit
+process.on("exit", () => {
+  const tempCertPath = path.join(process.cwd(), "temp-ca.pem");
+  if (fs.existsSync(tempCertPath)) {
+    try {
+      fs.unlinkSync(tempCertPath);
+    } catch (err) {
+      console.error("Failed to clean up temporary certificate file", err);
+    }
+  }
+});
 
 // Initialize database
 (async () => {
