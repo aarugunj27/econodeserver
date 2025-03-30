@@ -3,29 +3,24 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 
-// SSL Certificate handling
-let sslOptions;
+// SSL Certificate handling - create file synchronously before connection
+let caFilePath = process.env.SSL_CA_CERT || "./ca.pem";
 
 if (process.env.CA_CERT_BASE64) {
-  // For Railway: decode base64 certificate from environment variable
-  const caCert = Buffer.from(process.env.CA_CERT_BASE64, "base64").toString(
-    "utf-8"
-  );
+  try {
+    // For Railway: decode base64 certificate from environment variable
+    const caCert = Buffer.from(process.env.CA_CERT_BASE64, "base64").toString(
+      "utf-8"
+    );
 
-  // Create a temporary file or use certificate directly
-  const tempCertPath = path.join(process.cwd(), "temp-ca.pem");
-  fs.writeFileSync(tempCertPath, caCert);
-
-  sslOptions = {
-    ca: tempCertPath, // Path to temp cert file
-    rejectUnauthorized: true,
-  };
-} else {
-  // For local development: use local certificate file
-  sslOptions = {
-    ca: fs.readFileSync(process.env.SSL_CA_CERT || "./ca.pem"), // Path to your Aiven CA cert
-    rejectUnauthorized: false, // Set to true in production
-  };
+    // Write to a file in the current working directory
+    caFilePath = path.join(process.cwd(), "railway-ca.pem");
+    fs.writeFileSync(caFilePath, caCert);
+    console.log("✅ SSL certificate written to", caFilePath);
+  } catch (err) {
+    console.error("❌ Error creating SSL certificate file:", err);
+    process.exit(1);
+  }
 }
 
 // Database connection configuration
@@ -35,9 +30,12 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "signup",
   port: process.env.DB_PORT || 14092,
-  ssl: sslOptions,
-  connectTimeout: 10000, // 10 seconds timeout
-  charset: "utf8mb4", // Better Unicode support
+  ssl: {
+    ca: fs.readFileSync(caFilePath), // Read from file
+    rejectUnauthorized: true,
+  },
+  connectTimeout: 10000,
+  charset: "utf8mb4",
 };
 
 // Create connection pool for better performance
